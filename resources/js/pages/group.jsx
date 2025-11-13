@@ -123,7 +123,7 @@ export default function Groups() {
                 <h2 className="font-semibold mb-4 text-lg">Your Groups</h2>
                 {groups.length === 0 ? (
                     <p className="text-gray-500 text-sm italic">
-                        Belum ada group. Yuk bikin atau join 😎
+                        Belum ada group. Yuk bikin atau join 
                     </p>
                 ) : (
                     <div className="grid gap-3">

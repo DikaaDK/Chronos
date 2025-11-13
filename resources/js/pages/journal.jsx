@@ -82,7 +82,7 @@ export default function Journal() {
             ) : (
                 <div className="flex flex-col items-center justify-center mt-20 text-gray-500">
                     <CalendarDays size={40} className="mb-3 text-emerald-500" />
-                    <p className="text-center">Belum ada jurnal yang ditulis. Yuk mulai nulis ceritamu ✍️</p>
+                    <p className="text-center">Belum ada jurnal yang ditulis. Yuk mulai nulis ceritamu </p>
                     <button
                         onClick={() => setIsModalOpen(true)}
                         className="mt-4 bg-emerald-600 text-white px-4 py-2 rounded-lg font-medium shadow hover:bg-emerald-700 transition"

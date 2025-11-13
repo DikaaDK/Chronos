@@ -23,7 +23,7 @@ export default function GroupDetail() {
 
   const handleEdit = (rowIndex, memberIndex, field, value) => {
     setData((prev) => {
-      const newData = [...prev];
+      const newData = [...prev];x
       newData[rowIndex].tasks[memberIndex][field] = value;
       return newData;
     });
@@ -31,7 +31,6 @@ export default function GroupDetail() {
 
   return (
     <div className="p-4">
-      {/* Desktop Table */}
       <div className="hidden md:block overflow-x-auto">
         <table className="min-w-full border border-gray-300 text-sm">
           <thead>
@@ -97,9 +96,9 @@ export default function GroupDetail() {
                         className="w-full border-none focus:ring-0 text-sm bg-transparent"
                       >
                         <option value="">-</option>
-                        <option value="done">✅ Selesai</option>
-                        <option value="progress">📝 Proses</option>
-                        <option value="pending">⏸️ Pending</option>
+                        <option value="done">Selesai</option>
+                        <option value="progress">Proses</option>
+                        <option value="pending">Pending</option>
                       </select>
                     </td>
                   </React.Fragment>
@@ -143,9 +142,9 @@ export default function GroupDetail() {
                     className="w-full border border-gray-300 rounded p-1 text-sm"
                   >
                     <option value="">Pilih status</option>
-                    <option value="done">✅ Selesai</option>
-                    <option value="progress">📝 Proses</option>
-                    <option value="pending">⏸️ Pending</option>
+                    <option value="done">Selesai</option>
+                    <option value="progress">Proses</option>
+                    <option value="pending">Pending</option>
                   </select>
                 </div>
               ))}

@@ -46,11 +46,9 @@ function App() {
         <BrowserRouter>
             <Layout>
                 <Routes>
-                    {/* Public routes */}
                     <Route path="/" element={<Login />} />
                     <Route path="/register" element={<Register />} />
 
-                    {/* Protected routes */}
                     <Route path="/home" element={<Home />} />
                     <Route path="/journal" element={<Journal />} />
                     <Route path="/add" element={<div>➕ Tambah Journal</div>} />
