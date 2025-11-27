@@ -1,14 +1,78 @@
-import { NavLink } from 'react-router-dom';
-import { Home, BookOpen, PlusCircle, User, Building } from 'lucide-react';
+import { NavLink, useNavigate } from 'react-router-dom';
+import { Home, BookOpen, PlusCircle, User, Building, LogOut } from 'lucide-react';
 import { useState, useEffect } from 'react';
+import Modaljournal from './modaljournal';
 
 export default function BottomBar() {
     const [isModalOpen, setIsModalOpen] = useState(false);
+    const [isSubmitting, setIsSubmitting] = useState(false);
+    const navigate = useNavigate();
+
+    const handleLogout = () => {
+        localStorage.removeItem('token');
+        localStorage.removeItem('user');
+        navigate('/');
+    };
 
     useEffect(() => {
         document.body.style.overflow = isModalOpen ? 'hidden' : 'auto';
         return () => (document.body.style.overflow = 'auto');
     }, [isModalOpen]);
+
+    const handleAddJournal = async ({ title, content, startDate, endDate }) => {
+        if (isSubmitting) {
+            return false;
+        }
+
+        const token = localStorage.getItem('token');
+        if (!token) {
+            navigate('/login');
+            return false;
+        }
+
+        const normalizedStartDate = normalizeDateForApi(startDate);
+        const normalizedEndDate = normalizeDateForApi(endDate || startDate);
+        const effectiveEndDate = normalizedEndDate < normalizedStartDate ? normalizedStartDate : normalizedEndDate;
+        const payload = {
+            title,
+            content,
+            start_date: normalizedStartDate,
+            end_date: effectiveEndDate,
+            date: normalizedStartDate,
+        };
+
+        try {
+            setIsSubmitting(true);
+
+            const res = await fetch('http://localhost:8000/api/journals', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${token}`,
+                    'Accept': 'application/json',
+                },
+                body: JSON.stringify(payload),
+            });
+
+            if (!res.ok) {
+                if (res.status === 401) {
+                    navigate('/login');
+                    return false;
+                }
+
+                await res.json().catch(() => ({}));
+                return false;
+            }
+
+            await res.json();
+            return true;
+        } catch (error) {
+            console.error('Gagal menambahkan jurnal:', error);
+            return false;
+        } finally {
+            setIsSubmitting(false);
+        }
+    };
 
     return (
         <>
@@ -81,83 +145,98 @@ export default function BottomBar() {
                 </div>
             </div>
 
-            <div className="hidden md:flex fixed top-0 left-0 h-screen w-56 bg-white/60 backdrop-blur-xl border-r border-white/20 shadow-lg flex-col justify-between py-6 z-40">
-                <div className='mt-20'>
-                    <nav className="flex flex-col space-y-2 px-2">
-                        <NavLink
-                            to="/home"
-                            className={({ isActive }) =>
-                                `flex items-center space-x-2 px-4 py-2 rounded-lg transition-all ${isActive
-                                    ? 'bg-emerald-100 text-emerald-700 font-semibold'
-                                    : 'text-gray-600 hover:bg-emerald-50 hover:text-emerald-600'
-                                }`
-                            }
-                        >
-                            <Home size={20} />
-                            <span>Home</span>
-                        </NavLink>
+            <div className="hidden md:flex fixed top-0 left-0 z-40 h-screen w-64 flex-col justify-between border-r border-emerald-100/70 bg-white/80 px-5 pt-24 pb-10 shadow-[0_0_45px_rgba(16,185,129,0.12)] backdrop-blur-xl">
+                <div className="space-y-6">
+                    <div className="rounded-2xl border border-emerald-100 bg-emerald-50/70 px-4 py-3 text-xs font-semibold uppercase tracking-wide text-emerald-600">
+                        Navigasi Utama
+                    </div>
 
-                        <NavLink
-                            to="/journal"
-                            className={({ isActive }) =>
-                                `flex items-center space-x-2 px-4 py-2 rounded-lg transition-all ${isActive
-                                    ? 'bg-emerald-100 text-emerald-700 font-semibold'
-                                    : 'text-gray-600 hover:bg-emerald-50 hover:text-emerald-600'
-                                }`
-                            }
-                        >
-                            <BookOpen size={20} />
-                            <span>Journal</span>
-                        </NavLink>
-
+                    <nav className="flex flex-col gap-3">
+                        <DesktopNavItem to="/home" icon={<Home size={18} />} label="Home" />
+                        <DesktopNavItem to="/journal" icon={<BookOpen size={18} />} label="Journal" />
+                        <DesktopNavItem to="/group" icon={<Building size={18} />} label="Group" />
                         <button
+                            type="button"
                             onClick={() => setIsModalOpen(true)}
-                            className="flex items-center space-x-2 px-4 py-2 mt-10 rounded-lg text-white bg-emerald-600 hover:bg-emerald-700 transition"
+                            className="flex items-center justify-center gap-3 rounded-2xl bg-gradient-to-r from-emerald-500 via-emerald-600 to-emerald-700 px-3 py-3 text-sm font-semibold text-white shadow-lg shadow-emerald-500/30 transition hover:-translate-y-px hover:shadow-xl"
                         >
-                            <PlusCircle size={20} />
-                            <span>Buat</span>
+                            <PlusCircle size={18} />
+                            <span>Buat Jurnal</span>
                         </button>
                     </nav>
                 </div>
 
-                <div className="px-2">
-                    <NavLink
-                        to="/profile"
-                        className={({ isActive }) =>
-                            `flex items-center space-x-2 px-4 py-2 rounded-lg transition-all ${isActive
-                                ? 'bg-emerald-100 text-emerald-700 font-semibold'
-                                : 'text-gray-600 hover:bg-emerald-50 hover:text-emerald-600'
-                            }`
-                        }
+                <div className="space-y-3">
+                    <div className="rounded-2xl border border-gray-100 bg-gray-50/70 px-4 py-3 text-xs font-semibold uppercase tracking-wide text-gray-500">
+                        Akun
+                    </div>
+                    <DesktopNavItem to="/profile" icon={<User size={18} />} label="Profile" />
+                    <button
+                        type="button"
+                        onClick={handleLogout}
+                        className="flex w-full items-center gap-3 rounded-2xl border border-red-100 bg-red-50/70 px-3 py-3 text-sm font-semibold text-red-600 transition hover:bg-red-100"
                     >
-                        <User size={20} />
-                        <span>Profile</span>
-                    </NavLink>
+                        <span className="flex h-9 w-9 items-center justify-center rounded-2xl bg-red-100 text-red-500">
+                            <LogOut size={18} />
+                        </span>
+                        <span>Logout</span>
+                    </button>
                 </div>
             </div>
 
-            {isModalOpen && (
-                <div
-                    className="fixed inset-0 flex items-center justify-center bg-black/60 backdrop-blur-sm z-[9999]"
-                    onClick={() => setIsModalOpen(false)}
-                >
-                    <div
-                        onClick={(e) => e.stopPropagation()}
-                        className="bg-white rounded-lg p-6 shadow-2xl max-w-md w-full mx-4"
-                    >
-                        <h2 className="text-lg font-semibold mb-3">Tambah Konten</h2>
-                        <p className="text-sm text-gray-500 mb-4">
-                            Ini contoh modal. Ubah isinya sesuai kebutuhan lo.
-                        </p>
-                        <button
-                            onClick={() => setIsModalOpen(false)}
-                            className="mt-2 bg-emerald-600 text-white px-4 py-2 rounded hover:bg-emerald-700 w-full"
-                        >
-                            Tutup
-                        </button>
-                    </div>
-                </div>
-            )}
+            <Modaljournal
+                isOpen={isModalOpen}
+                onClose={() => setIsModalOpen(false)}
+                onSubmit={handleAddJournal}
+            />
         </>
+    );
+}
+
+function normalizeDateForApi(value) {
+    if (!value) {   
+        return getTodayForInputValue();
+    }
+
+    if (typeof value === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(value)) {
+        return value;
+    }
+
+    const parsed = new Date(value);
+    if (Number.isNaN(parsed.getTime())) {
+        return value;
+    }
+
+    parsed.setMinutes(parsed.getMinutes() - parsed.getTimezoneOffset());
+    return parsed.toISOString().slice(0, 10);
+}
+
+function getTodayForInputValue() {
+    const today = new Date();
+    today.setMinutes(today.getMinutes() - today.getTimezoneOffset());
+    return today.toISOString().slice(0, 10);
+}
+
+function DesktopNavItem({ to, icon, label }) {
+    return (
+        <NavLink
+            to={to}
+            className={({ isActive }) => {
+                const base = 'group flex items-center gap-3 rounded-2xl px-3 py-3 text-sm font-medium transition';
+                const state = isActive
+                    ? ' bg-emerald-100 text-emerald-700 shadow-inner shadow-emerald-500/10'
+                    : ' text-gray-600 hover:bg-emerald-50 hover:text-emerald-600';
+                return base + state;
+            }}
+        >
+            <span
+                className={
+                    'flex h-9 w-9 items-center justify-center rounded-2xl bg-emerald-50 text-emerald-500 transition group-hover:bg-emerald-500 group-hover:text-white'
+                }
+            >
+                {icon}
+            </span>
+            <span>{label}</span>
+        </NavLink>
     );
 }

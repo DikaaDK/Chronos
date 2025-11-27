@@ -44,7 +44,7 @@ class GroupController extends Controller
 
         $group = Group::where('invite_code', $request->invite_code)->firstOrFail();
 
-        if ($group->users()->where('user_id', Auth::id())->exists()) {
+        if ($group->users()->where('users.id', Auth::id())->exists()) {
             return response()->json(['message' => 'You already joined this group'], 400);
         }
 
