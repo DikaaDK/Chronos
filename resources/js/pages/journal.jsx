@@ -4,6 +4,7 @@ import { PlusCircle, CalendarDays, Archive, Sparkles } from 'lucide-react';
 import Modaljournal from '../components/modaljournal';
 import JournalDetailModal from '../components/journalDetailModal';
 import ConfirmModal from '../components/ConfirmModal';
+import Footer from '../components/Footer';
 import { useLocalization } from '../context/LocalizationContext';
 
 export default function Journal() {
@@ -448,8 +449,9 @@ export default function Journal() {
     }, [journals, selectedJournal]);
 
     return (
-        <div className="space-y-8">
-            <header className="flex flex-col gap-4 rounded-3xl border border-emerald-100/70 bg-white/85 p-6 shadow-md shadow-emerald-500/5 backdrop-blur md:flex-row md:items-center md:justify-between">
+        <>
+            <div className="space-y-8">
+                <header className="flex flex-col gap-4 rounded-3xl border border-emerald-100/70 bg-white/85 p-6 shadow-md shadow-emerald-500/5 backdrop-blur md:flex-row md:items-center md:justify-between">
                 <div>
                     <div className="inline-flex items-center gap-2 rounded-full bg-emerald-50 px-3 py-1 text-xs font-semibold uppercase tracking-wide text-emerald-600">
                         <Archive size={14} />
@@ -597,24 +599,26 @@ export default function Journal() {
                 submitLabel={journalCopy.modals.editSubmit}
             />
 
-            <ConfirmModal
-                isOpen={isDeleteModalOpen}
-                title={journalCopy.modals.deleteTitle}
-                description={
-                    journalPendingDeletion?.title
-                        ? journalCopy.modals.deleteDescriptionWithTitle.replace(':title', journalPendingDeletion.title)
-                        : journalCopy.modals.deleteDescription
-                }
-                confirmText={journalCopy.modals.deleteConfirm}
-                cancelText={journalCopy.modals.deleteCancel}
-                processingText={t('common.processing', 'Memproses...')}
-                onConfirm={handleDeleteJournal}
-                onCancel={closeDeleteModal}
-                isConfirming={isDeletingJournal}
-                errorMessage={deleteError}
-                variant="danger"
-            />
-        </div>
+                <ConfirmModal
+                    isOpen={isDeleteModalOpen}
+                    title={journalCopy.modals.deleteTitle}
+                    description={
+                        journalPendingDeletion?.title
+                            ? journalCopy.modals.deleteDescriptionWithTitle.replace(':title', journalPendingDeletion.title)
+                            : journalCopy.modals.deleteDescription
+                    }
+                    confirmText={journalCopy.modals.deleteConfirm}
+                    cancelText={journalCopy.modals.deleteCancel}
+                    processingText={t('common.processing', 'Memproses...')}
+                    onConfirm={handleDeleteJournal}
+                    onCancel={closeDeleteModal}
+                    isConfirming={isDeletingJournal}
+                    errorMessage={deleteError}
+                    variant="danger"
+                />
+            </div>
+            <Footer />
+        </>
     );
 }
 

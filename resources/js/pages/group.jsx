@@ -3,6 +3,7 @@ import axios from "axios";
 import { useNavigate } from "react-router-dom";
 import { Users, PlusCircle, KeyRound, Sparkles } from "lucide-react";
 import { useLocalization } from "../context/LocalizationContext";
+import Footer from "../components/Footer";
 
 export default function Groups() {
     const [groups, setGroups] = useState([]);
@@ -105,8 +106,9 @@ export default function Groups() {
     };
 
     return (
-        <div className="space-y-8">
-            <header className="rounded-3xl border border-emerald-100/70 bg-white/85 p-6 text-center shadow-md shadow-emerald-500/5 backdrop-blur md:text-left">
+        <>
+            <div className="space-y-8">
+                <header className="rounded-3xl border border-emerald-100/70 bg-white/85 p-6 text-center shadow-md shadow-emerald-500/5 backdrop-blur md:text-left">
                 <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
                     <div>
                         <div className="inline-flex items-center gap-2 rounded-full bg-emerald-50 px-3 py-1 text-xs font-semibold uppercase tracking-wide text-emerald-600">
@@ -244,6 +246,8 @@ export default function Groups() {
                     </div>
                 )}
             </section>
-        </div>
+            </div>
+            <Footer />
+        </>
     );
 }

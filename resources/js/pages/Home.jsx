@@ -6,6 +6,7 @@ import Modaljournal from '../components/modaljournal';
 import JournalCalendarModal from '../components/journalCalendar';
 import JournalDetailModal from '../components/journalDetailModal';
 import ConfirmModal from '../components/ConfirmModal';
+import Footer from '../components/Footer';
 import { useLocalization } from '../context/LocalizationContext';
 
 export default function Home() {
@@ -390,7 +391,8 @@ export default function Home() {
     }, [journals, selectedJournal]);
 
     return (
-        <div className="space-y-10 pb-24">
+        <>
+            <div className="space-y-10 pb-24">
             <div className="text-center mb-10">
                 <h1 className="text-4xl font-extrabold text-emerald-700 tracking-tight">{t('app.name', 'Chronos')}</h1>
                 <div className="inline-block px-4 py-1 mt-2 mb-3 rounded-full bg-emerald-100 text-emerald-700 text-sm font-medium">
@@ -550,7 +552,9 @@ export default function Home() {
                 onClose={() => setIsCalendarOpen(false)}
                 dateJournalMap={journalDateMap}
             />
-        </div>
+            </div>
+            <Footer />
+        </>
     );
 }
 

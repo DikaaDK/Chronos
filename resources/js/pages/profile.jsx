@@ -6,6 +6,7 @@ import ConfirmModal from '../components/ConfirmModal';
 import { useLocalization } from '../context/LocalizationContext';
 import LanguagePreferenceCard from '../components/profile/LanguagePreferenceCard';
 import DisplayPreferenceCard from '../components/profile/DisplayPreferenceCard';
+import Footer from '../components/Footer';
 import { persistUserToLocalStorage } from '../utils/userStorage';
 
 
@@ -236,7 +237,8 @@ export default function Profile() {
     const savedAvatarUrl = user?.avatar_url ?? null;
 
     return (
-        <div className="space-y-8">
+        <>
+            <div className="space-y-8">
             {profileAlert && (
                 <div className={`flex items-center justify-between rounded-2xl border px-4 py-3 text-sm ${profileAlert.type === 'error' ? 'border-red-200 bg-red-50 text-red-700' : 'border-emerald-200 bg-emerald-50 text-emerald-700'}`}>
                     <div className="flex items-center gap-2">
@@ -356,7 +358,9 @@ export default function Profile() {
             <div className="py-4 text-center text-xs text-gray-400">
                 {t('app.version', 'Chronos v1.0')}
             </div>
-        </div>
+            </div>
+            <Footer />
+        </>
     );
 }
 
