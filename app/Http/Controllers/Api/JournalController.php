@@ -2,9 +2,12 @@
 
 namespace App\Http\Controllers\Api;
 
+use App\Events\JournalUpdated;
 use App\Http\Controllers\Controller;
 use App\Models\Journal;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Log;
+use Throwable;
 
 class JournalController extends Controller
 {
@@ -39,6 +42,12 @@ class JournalController extends Controller
             'date' => $startDate,
             'progress' => $validated['progress'] ?? 0,
         ]);
+
+        $this->broadcastJournalUpdate(
+            $request->user()->id,
+            'created',
+            $journal->fresh()->toArray()
+        );
 
         return response()->json($journal, 201);
     }
@@ -76,6 +85,12 @@ class JournalController extends Controller
             'date' => $startDate,
             'progress' => $validated['progress'] ?? $journal->progress,
         ]);
+
+        $this->broadcastJournalUpdate(
+            $request->user()->id,
+            'updated',
+            $journal->fresh()->toArray()
+        );
         return response()->json($journal);
     }
     public function destroy(Request $request, $id)
@@ -84,7 +99,30 @@ class JournalController extends Controller
             ->where('id', $id)
             ->firstOrFail();
 
+        $deletedId = $journal->id;
         $journal->delete();
+
+        $this->broadcastJournalUpdate(
+            $request->user()->id,
+            'deleted',
+            ['id' => $deletedId]
+        );
+
         return response()->json(['message' => 'Jurnal berhasil dihapus']);
+    }
+
+    protected function broadcastJournalUpdate(int $userId, string $action, ?array $payload): void
+    {
+        rescue(
+            fn () => JournalUpdated::dispatch($userId, $action, $payload),
+            function (Throwable $exception) use ($userId, $action) {
+                Log::warning('Failed to broadcast journal update', [
+                    'user_id' => $userId,
+                    'action' => $action,
+                    'error' => $exception->getMessage(),
+                ]);
+            },
+            false
+        );
     }
 }

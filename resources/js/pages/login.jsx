@@ -1,33 +1,32 @@
-import React, { useEffect, useState } from "react";
 import axios from "axios";
+import { useEffect, useMemo, useState } from "react";
 import {
     ArrowRight,
     AtSign,
-    Compass,
     Eye,
     EyeOff,
-    Facebook,
-    Github,
     Loader2,
     Lock,
-    MapPin,
-    Plane,
     Sparkles,
 } from "lucide-react";
+import { useLocalization } from "../context/LocalizationContext";
 
 const REMEMBER_EMAIL_KEY = "chronos-remember-email";
-const TRAVEL_HIGHLIGHTS = [
+const TRAVEL_HIGHLIGHT_ENTRIES = [
     {
-        icon: Compass,
-        text: "Template itinerary adaptif untuk city break, road trip, atau slow travel.",
-    },
-    {
-        icon: MapPin,
-        text: "Simpan highlight destinasi favorit dan tandai mood tiap lokasi.",
+        icon: Sparkles,
+        key: "auth.login.highlights.itinerary",
+        fallback: "Template itinerary adaptif untuk city break, road trip, atau slow travel.",
     },
     {
         icon: Sparkles,
-        text: "Mood journaling harian dengan insight perjalanan otomatis tersusun.",
+        key: "auth.login.highlights.destinations",
+        fallback: "Simpan highlight destinasi favorit dan tandai mood tiap lokasi.",
+    },
+    {
+        icon: Sparkles,
+        key: "auth.login.highlights.mood",
+        fallback: "Mood journaling harian dengan insight perjalanan otomatis tersusun.",
     },
 ];
 
@@ -38,6 +37,46 @@ export default function Login() {
     const [loading, setLoading] = useState(false);
     const [showPassword, setShowPassword] = useState(false);
     const [rememberMe, setRememberMe] = useState(false);
+    const { applyUserLocale, t } = useLocalization();
+
+    const loginCopy = useMemo(() => ({
+        badge: {
+            left: t("auth.login.badge.left", "Chronos Login"),
+        },
+        hero: {
+            title: t("auth.login.hero.title", "Masuk untuk mulai menulis cerita perjalananmu."),
+        },
+        form: {
+            emailLabel: t("auth.login.form.email_label", "Email"),
+            emailPlaceholder: t("auth.login.form.email_placeholder", "Chronos@gmail.com"),
+            passwordLabel: t("auth.login.form.password_label", "Password"),
+            passwordPlaceholder: t("auth.login.form.password_placeholder", "••••••••"),
+            remember: t("auth.login.form.remember", "Ingat saya"),
+            forgot: t("auth.login.form.forgot", "Lupa password?"),
+            submit: t("auth.login.form.submit", "Masuk sekarang"),
+            processing: t("auth.login.form.processing", "Memproses..."),
+        },
+        togglePassword: {
+            show: t("auth.login.form.show_password", "Tampilkan password"),
+            hide: t("auth.login.form.hide_password", "Sembunyikan password"),
+        },
+        errors: {
+            validation: t("auth.login.errors.validation", "Lengkapi semua form dengan benar."),
+            credentials: t("auth.login.errors.credentials", "Email atau password salah."),
+            server: t("auth.login.errors.server", "Terjadi kesalahan server."),
+        },
+        footer: {
+            question: t("auth.login.footer.question", "Belum punya akun?"),
+            cta: t("auth.login.footer.cta", "Daftar gratis sekarang"),
+        },
+    }), [t]);
+
+    const travelHighlights = useMemo(() => (
+        TRAVEL_HIGHLIGHT_ENTRIES.map(({ icon, key, fallback }) => ({
+            icon,
+            text: t(key, fallback),
+        }))
+    ), [t]);
 
     useEffect(() => {
         const savedEmail = localStorage.getItem(REMEMBER_EMAIL_KEY);
@@ -67,19 +106,20 @@ export default function Login() {
                 localStorage.removeItem(REMEMBER_EMAIL_KEY);
             }
 
+            await applyUserLocale(user?.locale);
             window.location.href = "/home";
         } catch (err) {
             const validationErrors = err.response?.data?.errors;
             if (validationErrors && typeof validationErrors === "object") {
                 const firstKey = Object.keys(validationErrors)[0];
                 const firstMessage = Array.isArray(validationErrors[firstKey]) ? validationErrors[firstKey][0] : null;
-                setError(firstMessage ?? "Lengkapi semua form dengan benar.");
+                setError(firstMessage ?? loginCopy.errors.validation);
             } else if (err.response?.status === 401) {
-                setError("Email atau password salah.");
+                setError(loginCopy.errors.credentials);
             } else if (err.response?.data?.message) {
                 setError(err.response.data.message);
             } else {
-                setError("Terjadi kesalahan server.");
+                setError(loginCopy.errors.server);
             }
         } finally {
             setLoading(false);
@@ -87,191 +127,120 @@ export default function Login() {
     };
 
     return (
-        <div className="relative min-h-screen overflow-hidden bg-slate-950 text-slate-100">
-            <div className="absolute inset-0 bg-[radial-gradient(circle_at_top,rgba(59,130,246,0.2),rgba(15,23,42,0.96))]" />
-            <div className="pointer-events-none absolute -top-32 left-[12%] h-80 w-80 rounded-full bg-sky-500/20 blur-[140px]" />
-            <div className="pointer-events-none absolute -bottom-40 right-[14%] h-96 w-96 rounded-full bg-indigo-500/25 blur-[170px]" />
+        <div className="min-h-scree px-4 py-12 text-slate-900 dark:bg-slate-950 dark:text-slate-100">
+            <div className="mx-auto w-full max-w-xl rounded-3xl border border-emerald-100 bg-white/95 p-8 shadow-xl shadow-emerald-900/5 backdrop-blur transition-colors dark:border-slate-800 dark:bg-slate-900/90">
+                <div className="mb-8 space-y-3 text-center">
+                    <span className="inline-flex items-center gap-2 rounded-full border border-emerald-100 bg-emerald-50 px-4 py-1 text-[11px] font-semibold uppercase tracking-[0.3em] text-emerald-600 dark:border-emerald-500/40 dark:bg-emerald-500/10 dark:text-emerald-200">
+                        <Sparkles size={12} /> {loginCopy.badge.left}
+                    </span>
+                    <h1 className="text-2xl font-semibold text-slate-900 dark:text-white">{loginCopy.hero.title}</h1>
+                    <p className="text-sm text-slate-500 dark:text-slate-300">{loginCopy.hero.description}</p>
+                </div>
 
-            <div className="relative mx-auto flex min-h-screen max-w-5xl items-center px-6 py-12">
-                <section className="relative w-full overflow-hidden rounded-[32px] border border-white/10 bg-white/5 shadow-[0_55px_140px_-70px_rgba(37,99,235,0.55)] backdrop-blur">
-                    <div className="absolute inset-0 bg-gradient-to-br from-white/10 via-transparent to-transparent" />
-                    <div className="relative grid gap-0 lg:grid-cols-[320px_minmax(0,1fr)]">
-                        <aside className="hidden flex-col justify-between border-b border-white/10 bg-gradient-to-br from-blue-700/80 via-indigo-600/65 to-slate-900/85 p-10 text-slate-50 lg:flex">
-                            <div className="flex items-center justify-between text-[11px] font-semibold uppercase tracking-[0.32em] text-blue-100/85">
-                                <span className="flex items-center gap-2">
-                                    <Plane size={15} /> Chronos Travel
-                                </span>
-                                <span className="text-blue-100/75">Sejak 2022</span>
-                            </div>
-
-                            <div className="space-y-6">
-                                <h1 className="text-3xl font-semibold leading-snug">Ruang kerja biru untuk menemani ritme perjalananmu.</h1>
-                                <p className="text-sm text-blue-100/80">
-                                    Kelola itinerary, mood tracker, dan highlight destinasi favorit dalam satu dashboard yang responsif.
-                                </p>
-                                <div className="space-y-3 text-sm text-blue-100/90">
-                                    {TRAVEL_HIGHLIGHTS.map(({ icon: Icon, text }) => (
-                                        <div
-                                            key={text}
-                                            className="flex items-center gap-3 rounded-2xl border border-white/20 bg-white/10 px-4 py-3"
-                                        >
-                                            <Icon size={16} className="text-sky-200" />
-                                            <span>{text}</span>
-                                        </div>
-                                    ))}
-                                </div>
-                            </div>
-
-                            <div className="flex items-center gap-2 text-[11px] uppercase tracking-[0.28em] text-blue-100/80">
-                                <Sparkles size={14} /> 2.3k travel writers aktif
-                            </div>
-                        </aside>
-
-                        <div className="flex flex-col gap-8 p-7 sm:p-10">
-                            <div className="flex items-center justify-between rounded-full border border-white/10 bg-white/5 px-5 py-2 text-[11px] font-semibold uppercase tracking-[0.28em] text-slate-200">
-                                <span className="flex items-center gap-2 text-sky-200">
-                                    <Sparkles size={14} /> Chronos Login
-                                </span>
-                                <span className="text-[10px] font-medium text-slate-400/80">Terproteksi · 24/7</span>
-                            </div>
-
-                            <header className="space-y-3">
-                                <p className="text-xs font-semibold uppercase tracking-[0.32em] text-sky-300/80">Selamat datang</p>
-                                <h2 className="text-3xl font-semibold text-white">Masuk untuk mulai menulis cerita perjalananmu.</h2>
-                                <p className="text-sm text-slate-400">
-                                    Pantau itinerary, catatan mood, dan insight destinasi langsung dari dashboard Chronos.
-                                </p>
-                            </header>
-
-                            <form className="space-y-5" onSubmit={handleLogin}>
-                                <div className="space-y-2">
-                                    <label htmlFor="email" className="text-xs font-semibold uppercase tracking-wide text-slate-400">
-                                        Email
-                                    </label>
-                                    <div className="relative">
-                                        <span className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-sky-300">
-                                            <AtSign size={16} />
-                                        </span>
-                                        <input
-                                            type="email"
-                                            id="email"
-                                            value={email}
-                                            onChange={(event) => setEmail(event.target.value)}
-                                            placeholder="kamu@chronos.app"
-                                            className="w-full rounded-2xl border border-white/10 bg-white/5 px-4 py-3 pl-12 text-sm text-white outline-none transition focus:border-sky-400/60 focus:ring-2 focus:ring-sky-400/30"
-                                            autoComplete="email"
-                                            required
-                                        />
-                                    </div>
-                                </div>
-
-                                <div className="space-y-2">
-                                    <label htmlFor="password" className="text-xs font-semibold uppercase tracking-wide text-slate-400">
-                                        Password
-                                    </label>
-                                    <div className="relative">
-                                        <span className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-sky-300">
-                                            <Lock size={16} />
-                                        </span>
-                                        <input
-                                            type={showPassword ? "text" : "password"}
-                                            id="password"
-                                            value={password}
-                                            onChange={(event) => setPassword(event.target.value)}
-                                            placeholder="••••••••"
-                                            className="w-full rounded-2xl border border-white/10 bg-white/5 px-4 py-3 pl-12 pr-12 text-sm text-white outline-none transition focus:border-sky-400/60 focus:ring-2 focus:ring-sky-400/30"
-                                            autoComplete="current-password"
-                                            required
-                                        />
-                                        <button
-                                            type="button"
-                                            onClick={() => setShowPassword((prev) => !prev)}
-                                            className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 transition hover:text-sky-200"
-                                            aria-label={showPassword ? "Sembunyikan password" : "Tampilkan password"}
-                                        >
-                                            {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
-                                        </button>
-                                    </div>
-                                </div>
-
-                                <div className="flex flex-wrap items-center justify-between gap-3 text-xs text-slate-400">
-                                    <label className="flex items-center gap-2">
-                                        <input
-                                            type="checkbox"
-                                            checked={rememberMe}
-                                            onChange={(event) => setRememberMe(event.target.checked)}
-                                            className="h-4 w-4 rounded border-white/20 bg-transparent text-sky-400 focus:ring-sky-400/50"
-                                        />
-                                        Ingat saya
-                                    </label>
-                                    <a
-                                        href="/forgot-password"
-                                        className="font-semibold text-sky-300 transition hover:text-sky-200"
-                                    >
-                                        Lupa password?
-                                    </a>
-                                </div>
-
-                                {error && (
-                                    <div className="rounded-2xl border border-red-400/40 bg-red-500/12 px-4 py-3 text-sm font-medium text-red-200">
-                                        {error}
-                                    </div>
-                                )}
-
-                                <button
-                                    type="submit"
-                                    disabled={loading}
-                                    className={`w-full rounded-full bg-gradient-to-r from-sky-400 via-indigo-500 to-blue-600 px-5 py-3 text-sm font-semibold text-white shadow-lg shadow-indigo-500/40 transition focus:outline-none focus:ring-4 focus:ring-sky-400/40 ${
-                                        loading ? "cursor-not-allowed opacity-80" : "hover:brightness-110"
-                                    }`}
-                                >
-                                    {loading ? (
-                                        <span className="flex items-center justify-center gap-2">
-                                            <Loader2 className="h-4 w-4 animate-spin" />
-                                            Memproses...
-                                        </span>
-                                    ) : (
-                                        <span className="flex items-center justify-center gap-2">
-                                            Masuk sekarang
-                                            <ArrowRight size={16} />
-                                        </span>
-                                    )}
-                                </button>
-                            </form>
-
-                            <div className="space-y-4 text-xs text-slate-400">
-                                <div className="flex items-center gap-3">
-                                    <span className="h-px flex-1 bg-white/10" />
-                                    atau lanjutkan dengan
-                                    <span className="h-px flex-1 bg-white/10" />
-                                </div>
-                                <div className="grid grid-cols-2 gap-3">
-                                    <button
-                                        type="button"
-                                        className="flex items-center justify-center gap-2 rounded-full border border-white/15 bg-white/5 py-2 text-sm font-semibold text-slate-200 transition hover:border-white/25 hover:bg-white/10"
-                                    >
-                                        <Facebook size={16} />
-                                        Facebook
-                                    </button>
-                                    <button
-                                        type="button"
-                                        className="flex items-center justify-center gap-2 rounded-full border border-white/15 bg-white/5 py-2 text-sm font-semibold text-slate-200 transition hover:border-white/25 hover:bg-white/10"
-                                    >
-                                        <Github size={16} />
-                                        GitHub
-                                    </button>
-                                </div>
-                            </div>
-
-                            <footer className="text-center text-xs text-slate-400">
-                                Belum punya akun?
-                                <a href="/register" className="ml-1 font-semibold text-sky-300 hover:text-sky-200">
-                                    Daftar gratis sekarang
-                                </a>
-                            </footer>
+                <form className="space-y-5" onSubmit={handleLogin}>
+                    <div className="space-y-2">
+                        <label htmlFor="email" className="text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-300">
+                            {loginCopy.form.emailLabel}
+                        </label>
+                        <div className="relative">
+                            <span className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-emerald-500">
+                                <AtSign size={16} />
+                            </span>
+                            <input
+                                type="email"
+                                id="email"
+                                value={email}
+                                onChange={(event) => setEmail(event.target.value)}
+                                placeholder="Chronos@gmail.com"
+                                className="w-full rounded-2xl border border-emerald-100 bg-white px-4 py-3 pl-12 text-sm text-slate-900 outline-none transition focus:border-emerald-400 focus:ring-2 focus:ring-emerald-100 dark:border-slate-700 dark:bg-slate-800 dark:text-white"
+                                autoComplete="email"
+                                required
+                            />
                         </div>
                     </div>
-                </section>
+
+                    <div className="space-y-2">
+                        <label htmlFor="password" className="text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-300">
+                            {loginCopy.form.passwordLabel}
+                        </label>
+                        <div className="relative">
+                            <span className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-emerald-500">
+                                <Lock size={16} />
+                            </span>
+                            <input
+                                type={showPassword ? "text" : "password"}
+                                id="password"
+                                value={password}
+                                onChange={(event) => setPassword(event.target.value)}
+                                placeholder={loginCopy.form.passwordPlaceholder}
+                                className="w-full rounded-2xl border border-emerald-100 bg-white px-4 py-3 pl-12 pr-12 text-sm text-slate-900 outline-none transition focus:border-emerald-400 focus:ring-2 focus:ring-emerald-100 dark:border-slate-700 dark:bg-slate-800 dark:text-white"
+                                autoComplete="current-password"
+                                required
+                            />
+                            <button
+                                type="button"
+                                onClick={() => setShowPassword((prev) => !prev)}
+                                className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 transition hover:text-emerald-500 dark:text-slate-300"
+                                aria-label={showPassword ? loginCopy.togglePassword.hide : loginCopy.togglePassword.show}
+                            >
+                                {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+                            </button>
+                        </div>
+                    </div>
+
+                    <div className="flex flex-wrap items-center justify-between gap-3 text-xs text-slate-500 dark:text-slate-300">
+                        <label className="flex items-center gap-2">
+                            <input
+                                type="checkbox"
+                                checked={rememberMe}
+                                onChange={(event) => setRememberMe(event.target.checked)}
+                                className="h-4 w-4 rounded border-emerald-200 text-emerald-600 focus:ring-emerald-400 dark:border-slate-600"
+                            />
+                            {loginCopy.form.remember}
+                        </label>
+                        <a
+                            href="/forgot-password"
+                            className="font-semibold text-emerald-600 transition hover:text-emerald-500 dark:text-emerald-300"
+                        >
+                            {loginCopy.form.forgot}
+                        </a>
+                    </div>
+
+                    {error && (
+                        <div className="rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-medium text-red-700 dark:border-red-500/40 dark:bg-red-500/15 dark:text-red-100">
+                            {error}
+                        </div>
+                    )}
+
+                    <button
+                        type="submit"
+                        disabled={loading}
+                        className={`w-full rounded-full bg-emerald-600 px-5 py-3 text-sm font-semibold text-white shadow-lg shadow-emerald-500/30 transition focus:outline-none focus:ring-4 focus:ring-emerald-200 dark:bg-emerald-500 ${
+                            loading ? "cursor-not-allowed opacity-80" : "hover:bg-emerald-500"
+                        }`}
+                    >
+                        {loading ? (
+                            <span className="flex items-center justify-center gap-2">
+                                <Loader2 className="h-4 w-4 animate-spin" />
+                                {loginCopy.form.processing}
+                            </span>
+                        ) : (
+                            <span className="flex items-center justify-center gap-2">
+                                {loginCopy.form.submit}
+                                <ArrowRight size={16} />
+                            </span>
+                        )}
+                    </button>
+                </form>
+
+                <div className="mt-8 space-y-4 text-center text-xs text-slate-500 dark:text-slate-300">
+                    <p>
+                        {loginCopy.footer.question}
+                        <a href="/register" className="ml-1 font-semibold text-emerald-600 hover:text-emerald-500 dark:text-emerald-300">
+                            {loginCopy.footer.cta}
+                        </a>
+                    </p>
+                </div>
             </div>
         </div>
     );

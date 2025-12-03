@@ -86,18 +86,18 @@ export default function Modaljournal({
 
     return (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm px-4 py-6">
-            <div className="relative w-full max-w-xl overflow-hidden rounded-3xl border border-emerald-100 bg-white/95 shadow-2xl transition-all">
+            <div className="relative w-full max-w-lg overflow-hidden rounded-2xl border border-emerald-100 bg-white/95 shadow-2xl transition-all sm:max-w-md">
                 <div className="pointer-events-none absolute -right-16 -top-20 h-56 w-56 rounded-full bg-emerald-200/40 blur-3xl" />
                 <div className="pointer-events-none absolute -left-20 bottom-0 h-48 w-48 rounded-full bg-emerald-100/60 blur-3xl" />
 
-                <div className="relative flex items-center justify-between gap-3 px-6 py-5 border-b border-emerald-100 bg-gradient-to-r from-emerald-500/10 via-white to-white">
+                <div className="relative flex items-center justify-between gap-3 px-5 py-4 border-b border-emerald-100 bg-gradient-to-r from-emerald-500/10 via-white to-white">
                     <div className="flex items-center gap-3">
-                        <span className="inline-flex h-11 w-11 items-center justify-center rounded-2xl bg-emerald-500/10 text-emerald-600">
+                        <span className="inline-flex h-10 w-10 items-center justify-center rounded-2xl bg-emerald-500/10 text-emerald-600">
                             <NotebookPen size={22} />
                         </span>
                 
                         <div>
-                            <h2 className="text-xl font-semibold text-gray-800">{heading}</h2>
+                            <h2 className="text-lg font-semibold text-gray-800">{heading}</h2>
                         </div>
                     </div>
 
@@ -111,8 +111,8 @@ export default function Modaljournal({
                     </button>
                 </div>
 
-                <form onSubmit={handleSubmit} className="relative px-6 py-5 space-y-5">
-                    <div className="grid gap-4 rounded-2xl bg-emerald-50/60 p-4 sm:grid-cols-2">
+                <form onSubmit={handleSubmit} className="relative px-5 py-5 space-y-4">
+                    <div className="grid gap-3 rounded-2xl bg-emerald-50/60 p-4 sm:grid-cols-2">
                         <div className="flex flex-col gap-1">
                             <label className="text-sm font-semibold text-emerald-900">Mulai</label>
                             <input

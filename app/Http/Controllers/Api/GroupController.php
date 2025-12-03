@@ -55,7 +55,27 @@ class GroupController extends Controller
 
     public function show($id)
     {
-        $group = Group::with('users')->findOrFail($id);
+        $group = Group::with('users')
+            ->where('id', $id)
+            ->whereHas('users', function ($query) {
+                $query->where('users.id', Auth::id());
+            })
+            ->firstOrFail();
+
         return response()->json($group);
+    }
+
+    public function destroy($id)
+    {
+        $group = Group::findOrFail($id);
+
+        if ($group->owner_id !== Auth::id()) {
+            return response()->json(['message' => 'You are not authorized to delete this group'], 403);
+        }
+
+        $group->users()->detach();
+        $group->delete();
+
+        return response()->json(['message' => 'Group deleted successfully']);
     }
 }

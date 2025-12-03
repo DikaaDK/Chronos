@@ -9,3 +9,94 @@
     --font-sans: 'Instrument Sans', ui-sans-serif, system-ui, sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji',
         'Segoe UI Symbol', 'Noto Color Emoji';
 }
+
+:root {
+    --app-surface: #ecfdf5;
+    --app-card-surface: rgba(255, 255, 255, 0.92);
+    --app-card-surface-muted: rgba(255, 255, 255, 0.75);
+    --app-border: rgba(16, 185, 129, 0.25);
+    --app-text-primary: #0f172a;
+    --app-text-muted: #475569;
+    --app-nav-background: rgba(255, 255, 255, 0.65);
+    --font-size-scale: 1;
+}
+
+[data-theme='dark'] {
+    --app-surface: #020617;
+    --app-card-surface: rgba(15, 23, 42, 0.92);
+    --app-card-surface-muted: rgba(15, 23, 42, 0.8);
+    --app-border: rgba(52, 211, 153, 0.45);
+    --app-text-primary: #f8fafc;
+    --app-text-muted: #94a3b8;
+    --app-nav-background: rgba(15, 23, 42, 0.9);
+}
+
+html {
+    font-size: calc(16px * var(--font-size-scale));
+    transition: font-size 0.2s ease;
+}
+
+body {
+    background-color: var(--app-surface);
+    color: var(--app-text-primary);
+    font-family: var(--font-sans);
+    transition: background-color 0.3s ease, color 0.3s ease;
+}
+
+body::selection {
+    background-color: rgba(16, 185, 129, 0.35);
+}
+
+[data-theme='dark'] .bg-white,
+[data-theme='dark'] .bg-white\/90,
+[data-theme='dark'] .bg-white\/85,
+[data-theme='dark'] .bg-white\/80,
+[data-theme='dark'] .bg-white\/60,
+[data-theme='dark'] .bg-white\/50,
+[data-theme='dark'] .bg-white\/40,
+[data-theme='dark'] .bg-white\/30,
+[data-theme='dark'] .bg-white\/20,
+[data-theme='dark'] .bg-white\/10,
+[data-theme='dark'] .bg-emerald-50\/60 {
+    background-color: var(--app-card-surface) !important;
+    color: var(--app-text-primary) !important;
+}
+
+[data-theme='dark'] .bg-white\/15,
+[data-theme='dark'] .bg-white\/12,
+[data-theme='dark'] .bg-white\/5 {
+    background-color: var(--app-card-surface-muted) !important;
+}
+
+[data-theme='dark'] .border-emerald-100,
+[data-theme='dark'] .border-emerald-100\/70,
+[data-theme='dark'] .border-emerald-100\/60,
+[data-theme='dark'] .border-white\/30,
+[data-theme='dark'] .border-white\/40,
+[data-theme='dark'] .border-white\/60 {
+    border-color: var(--app-border) !important;
+}
+
+[data-theme='dark'] .text-gray-900,
+[data-theme='dark'] .text-gray-800,
+[data-theme='dark'] .text-gray-700,
+[data-theme='dark'] .text-emerald-700 {
+    color: var(--app-text-primary) !important;
+}
+
+[data-theme='dark'] .text-gray-500,
+[data-theme='dark'] .text-gray-400,
+[data-theme='dark'] .text-gray-300,
+[data-theme='dark'] .text-white\/80,
+[data-theme='dark'] .text-white\/60 {
+    color: var(--app-text-muted) !important;
+}
+
+[data-theme='dark'] nav,
+[data-theme='dark'] .backdrop-blur-lg {
+    background-color: var(--app-nav-background) !important;
+}
+
+.theme-transition {
+    transition: background-color 0.3s ease, color 0.3s ease, border-color 0.3s ease;
+}

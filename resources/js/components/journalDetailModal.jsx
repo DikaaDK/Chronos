@@ -22,6 +22,7 @@ export default function JournalDetailModal({
     const progressSummary = useMemo(() => computeProgressSummary(journal), [journal]);
     const progressPercent = progressSummary?.percent ?? 0;
     const progressLabel = progressSummary?.label ?? 'Belum dimulai';
+    const isOverdue = useMemo(() => isJournalOverdue(journal), [journal]);
 
     if (!isOpen || !journal) {
         return null;
@@ -70,20 +71,20 @@ export default function JournalDetailModal({
                         </div>
                     </div>
 
-                    <div className="rounded-2xl border border-emerald-100 bg-emerald-50/70 p-4 space-y-3">
+                    <div className={`rounded-2xl border p-4 space-y-3 ${isOverdue ? 'border-red-100 bg-red-50/80' : 'border-emerald-100 bg-emerald-50/70'}`}>
                         <div className="flex items-center justify-between">
-                            <p className="text-xs font-semibold uppercase tracking-wide text-emerald-500">Progress</p>
-                            <span className="text-sm font-semibold text-emerald-600">{progressPercent}%</span>
+                            <p className={`text-xs font-semibold uppercase tracking-wide ${isOverdue ? 'text-red-500' : 'text-emerald-500'}`}>{isOverdue ? 'Lewat batas waktu' : 'Progress'}</p>
+                            <span className={`text-sm font-semibold ${isOverdue ? 'text-red-600' : 'text-emerald-600'}`}>{progressPercent}%</span>
                         </div>
-                        <div className="h-2 w-full rounded-full bg-emerald-100/60">
+                        <div className={`h-2 w-full rounded-full ${isOverdue ? 'bg-red-100/60' : 'bg-emerald-100/60'}`}>
                             <div
-                                className="h-full rounded-full bg-gradient-to-r from-emerald-500 via-emerald-500 to-emerald-400 transition-all"
+                                className={`h-full rounded-full transition-all ${isOverdue ? 'bg-gradient-to-r from-red-500 via-red-500 to-rose-500' : 'bg-gradient-to-r from-emerald-500 via-emerald-500 to-emerald-400'}`}
                                 style={{ width: `${progressPercent}%` }}
                             />
                         </div>
-                        <p className="text-xs font-semibold uppercase tracking-wide text-emerald-500">{progressLabel}</p>
-                        <p className="text-xs text-emerald-600">
-                            Gunakan tombol <span className="font-semibold">Edit</span> untuk memperbarui progres.
+                        <p className={`text-xs font-semibold uppercase tracking-wide ${isOverdue ? 'text-red-500' : 'text-emerald-500'}`}>{isOverdue ? 'Segera perbarui progres' : progressLabel}</p>
+                        <p className={`text-xs ${isOverdue ? 'text-red-600' : 'text-emerald-600'}`}>
+                            {isOverdue ? 'Progres belum selesai padahal sudah melewati tanggal selesai.' : 'Gunakan tombol Edit untuk memperbarui progres.'}
                         </p>
                     </div>
 
@@ -274,4 +275,36 @@ function formatDateTimeForHuman(value) {
         hour: '2-digit',
         minute: '2-digit',
     });
+}
+
+function isJournalOverdue(journal) {
+    if (!journal || typeof journal !== 'object') {
+        return false;
+    }
+
+    const rawProgress = journal.progress;
+    if (rawProgress == null || Number.isNaN(Number(rawProgress))) {
+        return false;
+    }
+
+    const end = parseJournalDateValue(
+        journal.end_date ??
+        journal.endDate ??
+        journal.finish_date ??
+        journal.finishDate ??
+        journal.start_date ??
+        journal.startDate ??
+        journal.date
+    );
+
+    if (!end) {
+        return false;
+    }
+
+    const now = new Date();
+    if (now.getTime() <= end.getTime()) {
+        return false;
+    }
+
+    return clampPercent(rawProgress) < 100;
 }

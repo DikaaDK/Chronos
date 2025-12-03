@@ -56,6 +56,8 @@ return [
 
     'url' => env('APP_URL', 'http://localhost'),
 
+    'frontend_url' => env('FRONTEND_URL', env('APP_FRONTEND_URL', env('VITE_APP_URL', env('APP_URL', 'http://localhost:5173')))),
+
     /*
     |--------------------------------------------------------------------------
     | Application Timezone
@@ -81,6 +83,12 @@ return [
     */
 
     'locale' => env('APP_LOCALE', 'en'),
+
+    'supported_locales' => [
+        'id',
+        'en',
+        'zh',
+    ],
 
     'fallback_locale' => env('APP_FALLBACK_LOCALE', 'en'),
 

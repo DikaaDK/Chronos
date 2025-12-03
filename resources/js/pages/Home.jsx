@@ -5,9 +5,12 @@ import { PlusCircle, BookOpen, CalendarDays } from 'lucide-react';
 import Modaljournal from '../components/modaljournal';
 import JournalCalendarModal from '../components/journalCalendar';
 import JournalDetailModal from '../components/journalDetailModal';
+import ConfirmModal from '../components/ConfirmModal';
+import { useLocalization } from '../context/LocalizationContext';
 
 export default function Home() {
     const navigate = useNavigate();
+    const { t, locale } = useLocalization();
     const [user, setUser] = useState(null);
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [isSubmitting, setIsSubmitting] = useState(false);
@@ -21,6 +24,9 @@ export default function Home() {
     const [isEditModalOpen, setIsEditModalOpen] = useState(false);
     const [isUpdatingJournal, setIsUpdatingJournal] = useState(false);
     const [isDeletingJournal, setIsDeletingJournal] = useState(false);
+    const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
+    const [journalPendingDeletion, setJournalPendingDeletion] = useState(null);
+    const [deleteError, setDeleteError] = useState('');
 
     const fetchJournals = useCallback(async () => {
         const token = localStorage.getItem('token');
@@ -43,21 +49,23 @@ export default function Home() {
                 if (res.status === 401) {
                     localStorage.removeItem('token');
                     navigate('/login');
-                    throw new Error('Sesi berakhir, silakan login ulang.');
+                    throw new Error(t('home.errors.session_expired', 'Sesi berakhir, silakan login ulang.'));
                 }
 
-                throw new Error(`Gagal memuat jurnal (${res.status})`);
+                throw new Error(
+                    t('home.errors.load_failed', 'Gagal memuat jurnal (:status)').replace(':status', res.status)
+                );
             }
 
             const data = await res.json();
             setJournals(Array.isArray(data) ? data : []);
         } catch (error) {
             console.error('Gagal mengambil jurnal:', error);
-            setJournalsError(error.message || 'Tidak dapat memuat jurnal.');
+            setJournalsError(error.message || t('home.errors.generic_load', 'Tidak dapat memuat jurnal.'));
         } finally {
             setIsLoadingJournals(false);
         }
-    }, [navigate]);
+    }, [navigate, t]);
 
     useEffect(() => {
         const token = localStorage.getItem("token");
@@ -82,9 +90,49 @@ export default function Home() {
             });
     }, [navigate, fetchJournals]);
 
-    const journalDateCounts = useMemo(() => buildJournalDateCounts(journals), [journals]);
+    useEffect(() => {
+        if (!user?.id) {
+            return undefined;
+        }
 
-    const handleAddJournal = async ({ title, content, startDate, endDate }) => {
+        const token = localStorage.getItem('token');
+        const getEchoInstance = typeof window !== 'undefined' ? window.getEchoInstance : null;
+
+        if (!token || typeof getEchoInstance !== 'function') {
+            return undefined;
+        }
+
+        const echo = getEchoInstance(token);
+
+        if (!echo) {
+            return undefined;
+        }
+
+        const channelKey = `journals.${user.id}`;
+        const privateChannelKey = `private-${channelKey}`;
+        const channel = echo.private(channelKey);
+
+        const handleRealtimeChange = (payload) => {
+            setJournals((prev) => applyRealtimeJournalChange(prev, payload));
+        };
+
+        channel.listen('.JournalUpdated', handleRealtimeChange);
+
+        return () => {
+            channel.stopListening('.JournalUpdated');
+            echo.leave(privateChannelKey);
+        };
+    }, [user?.id]);
+
+    const untitledJournalLabel = t('home.defaults.untitled_journal', 'Jurnal tanpa judul');
+    const deleteGenericErrorMessage = t('home.delete_modal.error_generic', 'Gagal menghapus jurnal.');
+    const deleteNetworkErrorMessage = t('home.delete_modal.error_network', 'Terjadi kesalahan jaringan. Coba lagi.');
+    const journalDateMap = useMemo(
+        () => buildJournalDateMap(journals, untitledJournalLabel),
+        [journals, untitledJournalLabel]
+    );
+
+    const handleAddJournal = async ({ title, content, startDate, endDate, progress }) => {
         if (isSubmitting) {
             return false;
         }
@@ -104,6 +152,7 @@ export default function Home() {
             start_date: normalizedStartDate,
             end_date: effectiveEndDate,
             date: normalizedStartDate,
+            progress: clampPercent(progress ?? 0),
         };
 
         try {
@@ -129,7 +178,7 @@ export default function Home() {
                 return false;
             }
 
-            const savedJournal = await res.json();
+            const savedJournal = ensureProgressValue(await res.json(), payload.progress);
             setJournals((prevJournals) => {
                 const previous = Array.isArray(prevJournals) ? prevJournals : [];
                 const withoutDuplicate = savedJournal && savedJournal.id != null
@@ -176,7 +225,7 @@ export default function Home() {
         setIsEditModalOpen(true);
     };
 
-    const handleUpdateJournal = async ({ title, content, startDate, endDate }) => {
+    const handleUpdateJournal = async ({ title, content, startDate, endDate, progress }) => {
         if (!editingJournal || isUpdatingJournal) {
             return false;
         }
@@ -196,6 +245,7 @@ export default function Home() {
             start_date: normalizedStartDate,
             end_date: effectiveEndDate,
             date: normalizedStartDate,
+            progress: clampPercent(progress ?? editingJournal.progress ?? 0),
         };
 
         try {
@@ -221,7 +271,7 @@ export default function Home() {
                 return false;
             }
 
-            const updatedJournal = await res.json();
+            const updatedJournal = ensureProgressValue(await res.json(), payload.progress);
             setJournals((prevJournals) => {
                 const previous = Array.isArray(prevJournals) ? prevJournals : [];
                 return previous.map((journal) => (journal.id === updatedJournal.id ? updatedJournal : journal));
@@ -239,13 +289,27 @@ export default function Home() {
         }
     };
 
-    const handleDeleteJournal = async (journal) => {
-        if (!journal || isDeletingJournal) {
+    const requestDeleteJournal = (journal) => {
+        if (!journal) {
             return;
         }
 
-        const confirmDelete = window.confirm('Yakin ingin menghapus jurnal ini?');
-        if (!confirmDelete) {
+        setDeleteError('');
+        setJournalPendingDeletion(journal);
+        setIsDeleteModalOpen(true);
+    };
+
+    const closeDeleteModal = () => {
+        if (isDeletingJournal) {
+            return;
+        }
+
+        setIsDeleteModalOpen(false);
+        setJournalPendingDeletion(null);
+    };
+
+    const handleDeleteJournal = async () => {
+        if (!journalPendingDeletion || isDeletingJournal) {
             return;
         }
 
@@ -257,8 +321,9 @@ export default function Home() {
 
         try {
             setIsDeletingJournal(true);
+            setDeleteError('');
 
-            const res = await fetch(`http://localhost:8000/api/journals/${journal.id}`, {
+            const res = await fetch(`http://localhost:8000/api/journals/${journalPendingDeletion.id}`, {
                 method: 'DELETE',
                 headers: {
                     'Authorization': `Bearer ${token}`,
@@ -271,19 +336,26 @@ export default function Home() {
                     navigate('/login');
                 }
 
-                await res.json().catch(() => ({}));
+                const errorBody = await res.json().catch(() => ({}));
+                const backendMessage = typeof errorBody?.message === 'string' && errorBody.message.trim()
+                    ? errorBody.message
+                    : deleteGenericErrorMessage;
+                setDeleteError(backendMessage);
                 return;
             }
 
             setJournals((prevJournals) => {
                 const previous = Array.isArray(prevJournals) ? prevJournals : [];
-                return previous.filter((item) => item.id !== journal.id);
+                return previous.filter((item) => item.id !== journalPendingDeletion.id);
             });
             setSelectedJournal(null);
             setEditingJournal(null);
             setIsDetailOpen(false);
+            setIsDeleteModalOpen(false);
+            setJournalPendingDeletion(null);
         } catch (error) {
             console.error('Gagal menghapus jurnal:', error);
+            setDeleteError(deleteNetworkErrorMessage);
         } finally {
             setIsDeletingJournal(false);
         }
@@ -300,34 +372,53 @@ export default function Home() {
         setEditingJournal(null);
     };
 
+    useEffect(() => {
+        if (!selectedJournal || !Array.isArray(journals)) {
+            return;
+        }
+
+        const fresh = journals.find((journal) => journal.id === selectedJournal.id);
+        if (fresh && fresh !== selectedJournal) {
+            setSelectedJournal(fresh);
+            return;
+        }
+
+        if (!fresh) {
+            setIsDetailOpen(false);
+            setSelectedJournal(null);
+        }
+    }, [journals, selectedJournal]);
+
     return (
-        <div className="px-4 pt-10 pb-24 max-w-3xl mx-auto bg-gradient-to-b from-emerald-50 to-white min-h-screen">
+        <div className="space-y-10 pb-24">
             <div className="text-center mb-10">
-                <h1 className="text-4xl font-extrabold text-emerald-700 tracking-tight">Chronos</h1>
+                <h1 className="text-4xl font-extrabold text-emerald-700 tracking-tight">{t('app.name', 'Chronos')}</h1>
                 <div className="inline-block px-4 py-1 mt-2 mb-3 rounded-full bg-emerald-100 text-emerald-700 text-sm font-medium">
-                    {user ? `Selamat datang, ${user.name} 👋` : "Selamat datang"}
+                    {user
+                        ? t('home.hero.welcome_user', 'Selamat datang, :name 👋').replace(':name', user.name ?? '')
+                        : t('home.hero.welcome_generic', 'Selamat datang')}
                 </div>
                 <p className="text-gray-500 mt-2 text-sm sm:text-base">
-                    Catat cerita harianmu dengan tenang, simpan kenangan untuk masa depan
+                    {t('home.hero.subtitle', 'Catat cerita harianmu dengan tenang')}
                 </p>
             </div>
 
             <div className="grid grid-cols-3 gap-4 mb-12">
                 <ButtonOption
                     icon={<PlusCircle size={30} />}
-                    label="Tambah"
+                    label={t('home.actions.add', 'Tambah')}
                     color="emerald"
                     onClick={() => setIsModalOpen(true)}
                 />
                 <ButtonOption
                     icon={<BookOpen size={30} />}
-                    label="Jurnal"
+                    label={t('home.actions.journal', 'Jurnal')}
                     color="emerald"
                     onClick={() => navigate('/journal')}
                 />
                 <ButtonOption
                     icon={<CalendarDays size={30} />}
-                    label="Kalender"
+                    label={t('home.actions.calendar', 'Kalender')}
                     color="emerald"
                     onClick={() => setIsCalendarOpen(true)}
                 />
@@ -335,14 +426,14 @@ export default function Home() {
 
             <section className="mb-12">
                 <div className="flex justify-between items-center mb-4">
-                    <h2 className="text-xl font-semibold text-gray-800">Jurnal Terbaru</h2>
+                    <h2 className="text-xl font-semibold text-gray-800">{t('home.sections.latest.title', 'Jurnal Terbaru')}</h2>
                     {journals.length > 0 && (
                         <button
                             type="button"
                             onClick={() => navigate('/journal')}
                             className="text-sm font-medium text-emerald-600 hover:text-emerald-700 transition"
                         >
-                            Lihat semua
+                            {t('home.sections.latest.view_all', 'Lihat semua')}
                         </button>
                     )}
                 </div>
@@ -364,7 +455,9 @@ export default function Home() {
                     </div>
                 ) : journals.length > 0 ? (
                     <div className="space-y-4">
-                        {journals.slice(0, 5).map((journal) => (
+                        {journals.slice(0, 5).map((journal) => {
+                            const isOverdue = isJournalOverdue(journal);
+                            return (
                             <article
                                 key={journal.id}
                                 onClick={() => handleJournalClick(journal)}
@@ -376,27 +469,30 @@ export default function Home() {
                                 }}
                                 role="button"
                                 tabIndex={0}
-                                aria-label={`Lihat detail jurnal ${journal.title}`}
-                                className="bg-white rounded-xl p-4 shadow hover:shadow-lg transition flex justify-between items-start border border-gray-100 cursor-pointer focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-400"
+                                aria-label={t('home.accessibility.view_journal', 'Lihat detail jurnal :title').replace(':title', journal.title ?? '')}
+                                className={`rounded-xl p-4 shadow hover:shadow-lg transition flex justify-between items-start border cursor-pointer focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-400 ${isOverdue ? 'bg-red-50/80 border-red-200 shadow-red-100' : 'bg-white border-gray-100'}`}
                             >
                                 <div className="pr-3">
-                                    <h3 className="font-semibold text-gray-800 mb-1 line-clamp-1">{journal.title}</h3>
-                                    <p className="text-sm text-gray-500 line-clamp-3">{journal.content}</p>
+                                    <h3 className={`font-semibold mb-1 line-clamp-1 ${isOverdue ? 'text-red-700' : 'text-gray-800'}`}>{journal.title}</h3>
+                                    <p className={`text-sm line-clamp-3 ${isOverdue ? 'text-red-500' : 'text-gray-500'}`}>{journal.content}</p>
                                 </div>
-                                <div className="flex flex-col items-end text-right text-xs text-gray-400">
-                                    <CalendarDays size={14} className="mb-1 text-emerald-500" />
+                                <div className={`flex flex-col items-end text-right text-xs ${isOverdue ? 'text-red-500' : 'text-gray-400'}`}>
+                                    <CalendarDays size={14} className={`mb-1 ${isOverdue ? 'text-red-500' : 'text-emerald-500'}`} />
                                     <span>{formatJournalPeriodForDisplay(
                                         journal.start_date ?? journal.startDate,
                                         journal.end_date ?? journal.endDate,
-                                        journal.date
+                                        journal.date,
+                                        locale
                                     )}</span>
                                 </div>
                             </article>
-                        ))}
+                        );
+                    })}
                     </div>
                 ) : (
                     <div className="rounded-xl border border-dashed border-emerald-200 bg-emerald-50 px-5 py-8 text-center text-sm text-emerald-600">
-                        Tidak ada journal yang tersimpan. Mulai tulis cerita pertamamu!
+                        <p className="font-semibold">{t('home.sections.latest.empty.title', 'Tidak ada journal yang tersimpan.')}</p>
+                        <p className="mt-1 text-emerald-600">{t('home.sections.latest.empty.description', 'Mulai tulis cerita pertamamu!')}</p>
                     </div>
                 )}
             </section>
@@ -406,7 +502,7 @@ export default function Home() {
                 journal={selectedJournal}
                 onClose={closeDetailModal}
                 onEdit={handleEditRequest}
-                onDelete={handleDeleteJournal}
+                onDelete={requestDeleteJournal}
                 isDeleting={isDeletingJournal}
             />
 
@@ -425,15 +521,34 @@ export default function Home() {
                     content: editingJournal.content ?? '',
                     startDate: editingJournal.start_date ?? editingJournal.startDate ?? editingJournal.date,
                     endDate: editingJournal.end_date ?? editingJournal.endDate ?? editingJournal.start_date ?? editingJournal.startDate ?? editingJournal.date,
+                    progress: editingJournal.progress ?? 0,
                 } : undefined}
-                heading="Edit Jurnal"
-                submitLabel="Perbarui"
+                heading={t('home.edit_modal.title', 'Edit Jurnal')}
+                submitLabel={t('home.edit_modal.submit', 'Perbarui')}
+            />
+
+            <ConfirmModal
+                isOpen={isDeleteModalOpen}
+                title={t('home.delete_modal.title', 'Hapus jurnal?')}
+                description={
+                    journalPendingDeletion?.title
+                        ? t('home.delete_modal.description_with_title', 'Jurnal ":title" akan dihapus permanen.').replace(':title', journalPendingDeletion.title)
+                        : t('home.delete_modal.description', 'Jurnal ini akan dihapus permanen.')
+                }
+                confirmText={t('home.delete_modal.confirm', 'Hapus')}
+                cancelText={t('home.delete_modal.cancel', 'Batal')}
+                processingText={t('common.processing', 'Memproses...')}
+                onConfirm={handleDeleteJournal}
+                onCancel={closeDeleteModal}
+                isConfirming={isDeletingJournal}
+                errorMessage={deleteError}
+                variant="danger"
             />
 
             <JournalCalendarModal
                 isOpen={isCalendarOpen}
                 onClose={() => setIsCalendarOpen(false)}
-                dateCounts={journalDateCounts}
+                dateJournalMap={journalDateMap}
             />
         </div>
     );
@@ -455,11 +570,47 @@ function ButtonOption({ icon, label, color, onClick }) {
     );
 }
 
-function buildJournalDateCounts(journalList) {
-    const counts = {};
+function applyRealtimeJournalChange(previousList, payload) {
+    const action = payload?.action;
+    const journalData = payload?.journal;
+
+    if (!action || !journalData) {
+        return previousList;
+    }
+
+    const current = Array.isArray(previousList) ? [...previousList] : [];
+
+    if (action === 'deleted') {
+        if (journalData.id == null) {
+            return current;
+        }
+
+        return current.filter((item) => item?.id !== journalData.id);
+    }
+
+    if (journalData.id == null) {
+        return current;
+    }
+
+    const normalized = ensureProgressValue(journalData, journalData.progress ?? 0);
+    const withoutTarget = current.filter((item) => item?.id !== normalized.id);
+
+    return sortJournalsByIdDesc([normalized, ...withoutTarget]);
+}
+
+function sortJournalsByIdDesc(list) {
+    return [...list].sort((first = {}, second = {}) => {
+        const firstId = typeof first.id === 'number' ? first.id : 0;
+        const secondId = typeof second.id === 'number' ? second.id : 0;
+        return secondId - firstId;
+    });
+}
+
+function buildJournalDateMap(journalList, untitledLabel = 'Jurnal tanpa judul') {
+    const map = {};
 
     if (!Array.isArray(journalList)) {
-        return counts;
+        return map;
     }
 
     for (const journal of journalList) {
@@ -470,14 +621,27 @@ function buildJournalDateCounts(journalList) {
 
         const start = stripTime(range.start);
         const end = stripTime(range.end);
+        const startValue = journal.start_date ?? journal.startDate ?? journal.date ?? formatDateKey(start);
+        const endValue = journal.end_date ?? journal.endDate ?? journal.finish_date ?? journal.finishDate ?? startValue ?? formatDateKey(end);
+        const journalInfo = {
+            id: journal.id ?? journal.slug ?? `${journal.title ?? 'journal'}-${formatDateKey(start)}`,
+            title: (journal.title ?? untitledLabel).trim() || untitledLabel,
+            startDate: startValue,
+            endDate: endValue,
+            fallbackDate: journal.date ?? startValue,
+        };
 
         for (let cursor = new Date(start); cursor <= end; cursor.setDate(cursor.getDate() + 1)) {
             const key = formatDateKey(cursor);
-            counts[key] = (counts[key] || 0) + 1;
+            if (!map[key]) {
+                map[key] = { count: 0, journals: [] };
+            }
+            map[key].count += 1;
+            map[key].journals.push(journalInfo);
         }
     }
 
-    return counts;
+    return map;
 }
 
 function extractJournalDateRange(journal) {
@@ -669,29 +833,90 @@ function getTodayForInputValue() {
     return today.toISOString().slice(0, 10);
 }
 
-function formatJournalPeriodForDisplay(startValue, endValue, fallbackValue) {
+function formatJournalPeriodForDisplay(startValue, endValue, fallbackValue, locale = 'id-ID') {
     const start = parseJournalDateValue(startValue) || parseJournalDateValue(fallbackValue);
     const end = parseJournalDateValue(endValue) || start;
+    const safeLocale = typeof locale === 'string' && locale.trim() ? locale : 'id-ID';
 
     if (!start) {
         return fallbackValue ?? '-';
     }
 
     if (!end || end.getTime() === start.getTime()) {
-        return formatDateForHuman(start);
+        return formatDateForHuman(start, safeLocale);
     }
 
     if (end.getTime() < start.getTime()) {
-        return formatDateForHuman(start);
+        return formatDateForHuman(start, safeLocale);
     }
 
-    return `${formatDateForHuman(start)} - ${formatDateForHuman(end)}`;
+    return `${formatDateForHuman(start, safeLocale)} - ${formatDateForHuman(end, safeLocale)}`;
 }
 
-function formatDateForHuman(date) {
-    return date.toLocaleDateString('id-ID', {
+function formatDateForHuman(input, locale = 'id-ID') {
+    const date = input instanceof Date ? input : new Date(input);
+    if (Number.isNaN(date.getTime())) {
+        return '-';
+    }
+
+    const safeLocale = typeof locale === 'string' && locale.trim() ? locale : 'id-ID';
+
+    return date.toLocaleDateString(safeLocale, {
         day: '2-digit',
         month: 'short',
         year: 'numeric',
     });
+}
+
+function clampPercent(value) {
+    const numeric = Number(value);
+    if (!Number.isFinite(numeric)) {
+        return 0;
+    }
+
+    return Math.max(0, Math.min(100, Math.round(numeric)));
+}
+
+function ensureProgressValue(journal, fallbackProgress) {
+    if (!journal || typeof journal !== 'object') {
+        return journal;
+    }
+
+    if (journal.progress == null && fallbackProgress != null) {
+        return { ...journal, progress: clampPercent(fallbackProgress) };
+    }
+
+    return journal;
+}
+
+function isJournalOverdue(journal) {
+    if (!journal || typeof journal !== 'object') {
+        return false;
+    }
+
+    const rawProgress = journal.progress;
+    if (rawProgress == null || Number.isNaN(Number(rawProgress))) {
+        return false;
+    }
+
+    const end = parseJournalDateValue(
+        journal.end_date ??
+        journal.endDate ??
+        journal.finish_date ??
+        journal.finishDate ??
+        journal.start_date ??
+        journal.startDate ??
+        journal.date
+    );
+
+    if (!end) {
+        return false;
+    }
+
+    const now = new Date();
+    if (now.getTime() <= end.getTime()) {
+        return false;
+    }
+
+    return clampPercent(rawProgress) < 100;
 }

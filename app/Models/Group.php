@@ -15,4 +15,9 @@ class Group extends Model
     {
         return $this->belongsToMany(User::class)->withPivot('role')->withTimestamps();
     }
+
+    public function tasks()
+    {
+        return $this->hasMany(GroupTask::class);
+    }
 }

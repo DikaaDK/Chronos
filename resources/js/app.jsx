@@ -7,16 +7,30 @@ import BottomBar from './components/BottomBar';
 import Navbar from './components/navbar';
 import Login from './pages/login';
 import Register from './pages/register';
+import ForgotPassword from './pages/forgotPassword';
+import ResetPassword from './pages/resetPassword';
 import Home from './pages/home';
 import Journal from './pages/journal';
 import Profile from './pages/profile';
 import Group from './pages/group';
 import GroupDetail from "./pages/groupdetail";
+import SettingsProfile from './pages/settingsProfile';
+import { LocalizationProvider } from './context/LocalizationContext';
+import { DisplayPreferenceProvider, useDisplayPreferences } from './context/DisplayPreferenceContext';
 
 function Layout({ children }) {
     const location = useLocation();
-    const isAuthPage = location.pathname === '/' || location.pathname === '/register';
+    const { theme } = useDisplayPreferences();
+    const isDarkTheme = theme === 'dark';
+    const authPages = ['/', '/register', '/forgot-password', '/reset-password'];
+    const isAuthPage = authPages.includes(location.pathname);
     const isAuthenticated = !!localStorage.getItem("token");
+    const authenticatedBackgroundClass = isDarkTheme
+        ? 'bg-slate-950 text-slate-100'
+        : 'bg-emerald-50/60 text-gray-900';
+    const authBackgroundClass = isDarkTheme
+        ? 'bg-gradient-to-br from-slate-900 via-slate-950 to-black'
+        : 'bg-gradient-to-br from-emerald-600 via-emerald-500 to-emerald-400';
 
     if (!isAuthenticated && !isAuthPage) {
         return <Navigate to="/" replace />;
@@ -24,7 +38,7 @@ function Layout({ children }) {
 
     if (isAuthPage) {
         return (
-            <div className="min-h-screen bg-gradient-to-br from-emerald-600 via-emerald-500 to-emerald-400">
+            <div className={`min-h-screen ${authBackgroundClass}`}>
                 <main className="flex min-h-screen items-center justify-center px-4 py-10">
                     {children}
                 </main>
@@ -33,7 +47,7 @@ function Layout({ children }) {
     }
 
     return (
-        <div className="relative min-h-screen bg-emerald-50/60">
+        <div className={`relative min-h-screen transition-colors duration-300 ${authenticatedBackgroundClass}`}>
             <Navbar />
             <BottomBar />
 
@@ -51,21 +65,28 @@ function Layout({ children }) {
 
 function App() {
     return (
-        <BrowserRouter>
-            <Layout>
-                <Routes>
-                    <Route path="/" element={<Login />} />
-                    <Route path="/register" element={<Register />} />
+        <DisplayPreferenceProvider>
+            <LocalizationProvider>
+                <BrowserRouter>
+                    <Layout>
+                        <Routes>
+                            <Route path="/" element={<Login />} />
+                            <Route path="/register" element={<Register />} />
+                            <Route path="/forgot-password" element={<ForgotPassword />} />
+                            <Route path="/reset-password" element={<ResetPassword />} />
 
-                    <Route path="/home" element={<Home />} />
-                    <Route path="/journal" element={<Journal />} />
-                    <Route path="/add" element={<div>➕ Tambah Journal</div>} />
-                    <Route path="/group" element={<Group />} />
-                    <Route path="/groups/:id" element={<GroupDetail />} />
-                    <Route path="/profile" element={<Profile />} />
-                </Routes>
-            </Layout>
-        </BrowserRouter>
+                            <Route path="/home" element={<Home />} />
+                            <Route path="/journal" element={<Journal />} />
+                            <Route path="/add" element={<div>➕ Tambah Journal</div>} />
+                            <Route path="/group" element={<Group />} />
+                            <Route path="/groups/:id" element={<GroupDetail />} />
+                            <Route path="/profile" element={<Profile />} />
+                            <Route path="/settings/profile" element={<SettingsProfile />} />
+                        </Routes>
+                    </Layout>
+                </BrowserRouter>
+            </LocalizationProvider>
+        </DisplayPreferenceProvider>
     );
 }
 

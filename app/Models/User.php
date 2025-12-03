@@ -7,6 +7,7 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 use Laravel\Sanctum\HasApiTokens;
+use Illuminate\Support\Facades\Storage;
 
 class User extends Authenticatable
 {
@@ -22,6 +23,12 @@ class User extends Authenticatable
         'name',
         'email',
         'password',
+        'locale',
+        'profile_photo_path',
+    ];
+
+    protected $appends = [
+        'avatar_url',
     ];
 
     /**
@@ -50,6 +57,15 @@ class User extends Authenticatable
     public function groups()
     {
         return $this->belongsToMany(Group::class)->withPivot('role')->withTimestamps();
+    }
+
+    public function getAvatarUrlAttribute(): ?string
+    {
+        if (!$this->profile_photo_path) {
+            return null;
+        }
+
+        return Storage::url($this->profile_photo_path);
     }
 
 }
