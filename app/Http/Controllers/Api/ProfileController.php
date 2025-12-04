@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Api;
 
+use App\Events\UserProfileUpdated;
 use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
@@ -51,9 +52,13 @@ class ProfileController extends Controller
         $user->fill($updateData);
         $user->save();
 
+        $freshUser = $user->fresh();
+
+        UserProfileUpdated::dispatch($freshUser);
+
         return response()->json([
             'message' => __('Profil berhasil diperbarui.'),
-            'user' => $user->fresh(),
+            'user' => $freshUser,
         ]);
     }
 

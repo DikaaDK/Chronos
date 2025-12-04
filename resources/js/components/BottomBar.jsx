@@ -1,10 +1,11 @@
 import { NavLink, useLocation, useNavigate } from 'react-router-dom';
 import { Home, BookOpen, PlusCircle, User, Building, LogOut } from 'lucide-react';
 import { useState, useEffect } from 'react';
+import axios from 'axios';
 import Modaljournal from './modaljournal';
 import ConfirmModal from './ConfirmModal';
 import { useLocalization } from '../context/LocalizationContext';
-import { readUserFromLocalStorage } from '../utils/userStorage';
+import { persistUserToLocalStorage, readUserFromLocalStorage } from '../utils/userStorage';
 
 export default function BottomBar() {
     const [isModalOpen, setIsModalOpen] = useState(false);
@@ -36,6 +37,78 @@ export default function BottomBar() {
             window.removeEventListener('user-data-updated', syncUser);
         };
     }, []);
+    useEffect(() => {
+        let isSubscribed = true;
+        const token = typeof window !== 'undefined' ? window.localStorage.getItem('token') : null;
+
+        if (!token) {
+            return () => {
+                isSubscribed = false;
+            };
+        }
+
+        const syncUserFromApi = async () => {
+            try {
+                const { data } = await axios.get('/user', {
+                    headers: { Authorization: `Bearer ${token}` },
+                });
+
+                if (!isSubscribed || !data) {
+                    return;
+                }
+
+                persistUserToLocalStorage(data);
+                setStoredUser(data);
+            } catch (error) {
+                console.warn('Gagal sinkronisasi data user dari API:', error);
+            }
+        };
+
+        syncUserFromApi();
+
+        return () => {
+            isSubscribed = false;
+        };
+    }, []);
+
+    useEffect(() => {
+        if (typeof window === 'undefined') {
+            return undefined;
+        }
+
+        const token = window.localStorage.getItem('token');
+        const getEchoInstance = window.getEchoInstance;
+        const userId = storedUser?.id;
+
+        if (!token || !userId || typeof getEchoInstance !== 'function') {
+            return undefined;
+        }
+
+        const echo = getEchoInstance(token);
+
+        if (!echo) {
+            return undefined;
+        }
+
+        const channelName = `users.${userId}`;
+        const channel = echo.private(channelName);
+
+        const handleProfileUpdate = (event) => {
+            if (!event?.user) {
+                return;
+            }
+
+            persistUserToLocalStorage(event.user);
+            setStoredUser(event.user);
+        };
+
+        channel.listen('.UserProfileUpdated', handleProfileUpdate);
+
+        return () => {
+            channel.stopListening('.UserProfileUpdated');
+            echo.leave(channelName);
+        };
+    }, [storedUser?.id]);
     const profileName = storedUser?.name ?? t('profile.default_name', 'Pengguna Chronos');
     const profileInitial = (() => {
         if (!profileName || typeof profileName !== 'string') {
@@ -45,6 +118,7 @@ export default function BottomBar() {
         const trimmed = profileName.trim();
         return trimmed ? trimmed.charAt(0).toUpperCase() : 'C';
     })();
+    const avatarUrl = storedUser?.avatar_url ?? storedUser?.profile_photo_url ?? null;
 
     const navCopy = {
         home: t('bottom_bar.home', 'Home'),
@@ -230,8 +304,17 @@ export default function BottomBar() {
                     <div className="mt-20 space-y-4">
                         <div className="rounded-3xl border border-gray-100 bg-gray-50/80 p-4 shadow-lg shadow-gray-300/30">
                             <div className="flex items-center gap-3">
-                                <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-white text-lg font-bold text-emerald-600">
-                                    {profileInitial}
+                                <div className="flex h-12 w-12 items-center justify-center overflow-hidden rounded-2xl bg-white text-lg font-bold text-emerald-600">
+                                    {avatarUrl ? (
+                                        <img
+                                            src={avatarUrl}
+                                            alt={profileName}
+                                            className="h-full w-full object-cover"
+                                            loading="lazy"
+                                        />
+                                    ) : (
+                                        profileInitial
+                                    )}
                                 </div>
                                 <div>
                                     <p className="text-sm font-semibold text-gray-800">{profileName}</p>
