@@ -303,6 +303,10 @@ export default function GroupDetail() {
       return;
     }
 
+    if (!currentUser || currentUser.id !== member.id) {
+      return;
+    }
+
     const existingEntry = groupTasksRef.current.find(
       (entry) =>
         entry.task_date === dateInfo.date && entry.user_id === member.id
@@ -355,6 +359,27 @@ export default function GroupDetail() {
 
   const renderBadgeClass = (role) =>
     ROLE_BADGE_CLASS[role] ?? "bg-gray-100 text-gray-600";
+
+  const resolveMemberAvatar = (member) => {
+    if (!member) {
+      return { url: null, initials: "?" };
+    }
+
+    const safeName = member.name?.trim() || "Tanpa nama";
+    const url =
+      member.avatar_url ||
+      member.profile_photo_url ||
+      null;
+
+    const initials = safeName
+      .split(/\s+/)
+      .filter(Boolean)
+      .slice(0, 2)
+      .map((chunk) => chunk.charAt(0).toUpperCase())
+      .join("") || "?";
+
+    return { url, initials, name: safeName };
+  };
 
   const openDeleteModal = () => {
     if (!isOwner || !group) {
@@ -569,28 +594,44 @@ export default function GroupDetail() {
 
               {members.length ? (
                 <ul className="divide-y divide-gray-100">
-                  {members.map((member) => (
-                    <li
-                      key={member.id}
-                      className="flex flex-col gap-2 px-6 py-4 sm:flex-row sm:items-center sm:justify-between"
-                    >
-                      <div>
-                        <p className="text-sm font-semibold text-gray-900">
-                          {member.name ?? "Tanpa nama"}
-                        </p>
-                        <p className="text-xs text-gray-500">
-                          {member.email ?? "Email tidak tersedia"}
-                        </p>
-                      </div>
-                      <span
-                        className={`inline-flex items-center rounded-full px-3 py-1 text-xs font-semibold ${renderBadgeClass(
-                          member?.pivot?.role
-                        )}`}
+                  {members.map((member) => {
+                    const avatar = resolveMemberAvatar(member);
+                    return (
+                      <li
+                        key={member.id}
+                        className="flex flex-col gap-3 px-6 py-4 sm:flex-row sm:items-center sm:justify-between"
                       >
-                        {(member?.pivot?.role ?? "member").toUpperCase()}
-                      </span>
-                    </li>
-                  ))}
+                        <div className="flex items-center gap-3">
+                          {avatar.url ? (
+                            <img
+                              src={avatar.url}
+                              alt={`Foto profil ${avatar.name}`}
+                              className="h-12 w-12 rounded-full border border-gray-100 object-cover shadow-sm"
+                            />
+                          ) : (
+                            <div className="flex h-12 w-12 items-center justify-center rounded-full bg-emerald-50 text-sm font-semibold text-emerald-600">
+                              {avatar.initials}
+                            </div>
+                          )}
+                          <div>
+                            <p className="text-sm font-semibold text-gray-900">
+                              {member.name ?? "Tanpa nama"}
+                            </p>
+                            <p className="text-xs text-gray-500">
+                              {member.email ?? "Email tidak tersedia"}
+                            </p>
+                          </div>
+                        </div>
+                        <span
+                          className={`inline-flex items-center rounded-full px-3 py-1 text-xs font-semibold ${renderBadgeClass(
+                            member?.pivot?.role
+                          )}`}
+                        >
+                          {(member?.pivot?.role ?? "member").toUpperCase()}
+                        </span>
+                      </li>
+                    );
+                  })}
                 </ul>
               ) : (
                 <div className="px-6 py-10 text-center text-sm text-gray-500">
@@ -740,6 +781,7 @@ export default function GroupDetail() {
                                   task: "",
                                   status: "",
                                 };
+                                const canEditCell = currentUser?.id === member.id;
                                 const badgeClass = STATUS_BADGE_CLASS[task.status] ?? STATUS_BADGE_CLASS.default;
                                 const statusLabel = statusLabelMap[task.status ?? ""] ?? statusUnselectedLabel;
 
@@ -762,7 +804,13 @@ export default function GroupDetail() {
                                             )
                                           }
                                           placeholder="Ketik task"
-                                          className="w-full rounded-xl border border-gray-200 bg-white/90 px-3 py-2 text-sm shadow-sm transition focus:border-emerald-400 focus:outline-none focus:ring-2 focus:ring-emerald-200/60"
+                                          disabled={!canEditCell}
+                                          title={!canEditCell ? "Hanya pemilik jurnal yang dapat mengubah catatan ini" : undefined}
+                                          className={`w-full rounded-xl border px-3 py-2 text-sm shadow-sm transition focus:outline-none focus:ring-2 focus:ring-emerald-200/60 ${
+                                            canEditCell
+                                              ? "border-gray-200 bg-white/90 focus:border-emerald-400"
+                                              : "border-gray-100 bg-gray-50 text-gray-400"
+                                          }`}
                                         />
                                       </div>
                                     </td>
@@ -781,7 +829,13 @@ export default function GroupDetail() {
                                               event.target.value
                                             )
                                           }
-                                          className="w-full rounded-xl border border-gray-200 bg-white/90 px-3 py-2 text-sm shadow-sm transition focus:border-emerald-400 focus:outline-none focus:ring-2 focus:ring-emerald-200/60"
+                                          disabled={!canEditCell}
+                                          title={!canEditCell ? "Anda tidak bisa mengubah status jurnal milik anggota lain" : undefined}
+                                          className={`w-full rounded-xl border px-3 py-2 text-sm shadow-sm transition focus:outline-none focus:ring-2 focus:ring-emerald-200/60 ${
+                                            canEditCell
+                                              ? "border-gray-200 bg-white/90 focus:border-emerald-400"
+                                              : "border-gray-100 bg-gray-50 text-gray-400"
+                                          }`}
                                         >
                                           {statusOptions.map((option) => (
                                             <option key={option.value} value={option.value}>
@@ -835,6 +889,7 @@ export default function GroupDetail() {
                                 task: "",
                                 status: "",
                               };
+                              const canEditCell = currentUser?.id === member.id;
                               const badgeClass = STATUS_BADGE_CLASS[task.status] ?? STATUS_BADGE_CLASS.default;
                               const statusLabel = statusLabelMap[task.status ?? ""] ?? statusUnselectedLabel;
 
@@ -859,7 +914,13 @@ export default function GroupDetail() {
                                         )
                                       }
                                       placeholder="Ketik task"
-                                      className="w-full rounded-xl border border-gray-200 bg-white/90 px-3 py-2 text-sm shadow-sm focus:border-emerald-400 focus:outline-none focus:ring-2 focus:ring-emerald-200/60"
+                                      disabled={!canEditCell}
+                                      title={!canEditCell ? "Hanya pemilik jurnal yang dapat mengubah catatan ini" : undefined}
+                                      className={`w-full rounded-xl border px-3 py-2 text-sm shadow-sm focus:outline-none focus:ring-2 focus:ring-emerald-200/60 ${
+                                        canEditCell
+                                          ? "border-gray-200 bg-white/90 focus:border-emerald-400"
+                                          : "border-gray-100 bg-gray-50 text-gray-400"
+                                      }`}
                                     />
                                   </div>
                                   <div className="space-y-2">
@@ -876,7 +937,13 @@ export default function GroupDetail() {
                                           event.target.value
                                         )
                                       }
-                                      className="w-full rounded-xl border border-gray-200 bg-white/90 px-3 py-2 text-sm shadow-sm focus:border-emerald-400 focus:outline-none focus:ring-2 focus:ring-emerald-200/60"
+                                      disabled={!canEditCell}
+                                      title={!canEditCell ? "Anda tidak bisa mengubah status jurnal milik anggota lain" : undefined}
+                                      className={`w-full rounded-xl border px-3 py-2 text-sm shadow-sm focus:outline-none focus:ring-2 focus:ring-emerald-200/60 ${
+                                        canEditCell
+                                          ? "border-gray-200 bg-white/90 focus:border-emerald-400"
+                                          : "border-gray-100 bg-gray-50 text-gray-400"
+                                      }`}
                                     >
                                       {statusOptions.map((option) => (
                                         <option key={option.value} value={option.value}>

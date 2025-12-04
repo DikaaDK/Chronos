@@ -35,6 +35,10 @@ class GroupTaskController extends Controller
             'status' => ['nullable', Rule::in(['pending', 'progress', 'done'])],
         ]);
 
+        if ((int) $validated['user_id'] !== $request->user()->id) {
+            abort(403, 'Anda hanya bisa memperbarui jurnal milik sendiri.');
+        }
+
         $taskValue = trim((string) ($validated['task'] ?? ''));
         $statusValue = $validated['status'] ?? null;
 
